@@ -6,12 +6,36 @@ print("Rise to ECMAScript 5 transpiler")
 
 def transpale(line, className):
     
+    global entityType
+    
     outputLine = line
     
     classMatch = re.match(r'class ([a-zA-Z]*)', line, re.M|re.I)
     if classMatch != None:
         className = classMatch.group(1)
+        
+        entityType = "class"
+        
         return "function " + className + "()\n"
+
+    protocolMatch = re.match(r'protocol ([a-zA-Z]*)', line, re.M|re.I)
+    if protocolMatch != None:
+        protocolName = protocolMatch.group(1)
+        
+        entityType = "protocol"
+        
+        return "function " + protocolName + "()\n"
+    
+    builtinPrintMatch = re.match(r'(.*)RiseBuiltInMethods\.print\((.*)\)', line, re.M|re.I)
+    if builtinPrintMatch != None:
+        prefix = builtinPrintMatch.group(1)
+        arguments = builtinPrintMatch.group(2)
+        return prefix + "console.log(" + arguments + ");\n"
+    
+    builtinMapClassMatch = re.match(r'(.*) = RiseBuiltInClasses\.Map.*', line, re.M|re.I)
+    if builtinMapClassMatch != None:
+        prefix = builtinMapClassMatch.group(1)
+        return prefix + " = {};\n"
     
     methodMatch = re.match(r'(.*) (method) ([a-zA-Z]*)\((.*)\)', line, re.M|re.I)
     if methodMatch != None:
@@ -27,13 +51,17 @@ def transpale(line, className):
             print(argumentsMatch)
             parsedArguments.append(argumentsMatch)
         
-        
         if className == "main":
             prefix = "var "
         else:
             prefix = "\tthis."
+            
+        postfix = ""
         
-        return prefix + methodName + " = function("+ ",".join(parsedArguments) +")\n"
+        if entityType == "protocol":
+            postfix = " {}"
+        
+        return prefix + methodName + " = function("+ ", ".join(parsedArguments) +")" + postfix + "\n"
     
     classVariableDeclarationMatch = re.match(r'(.*) (declare) ([a-zA-Z]*) .*', line, re.M|re.I)
     if classVariableDeclarationMatch != None:
@@ -47,8 +75,40 @@ def transpale(line, className):
         localVariable = localVariableDeclarationMatch.group(3)
         value = localVariableDeclarationMatch.group(4)
         
-        return space + "var " + localVariable + value + "\n"
+        return space + "var " + localVariable + value + ";\n"
         
+    methodCallMatch = re.match(r'(.*)(\(.*\))', line, re.M|re.I)
+    if methodCallMatch != None:
+        prefix = methodCallMatch.group(1)
+        
+        formattedString = line.replace("\t", "")
+        formattedString = formattedString.replace("\n", "")
+        
+        if len(formattedString) < 4:
+            return line
+        
+        if formattedString[:3] == "if ":
+            return line
+        
+        if formattedString[:4] == "for":
+            return line
+        
+        arguments = methodCallMatch.group(2)
+        print(prefix)
+        print(arguments)
+        
+        parsedArguments = []
+        
+        argumentsMatches = re.findall(r' : ([" a-zA-Z]*)', line, re.M|re.I)
+        for argumentsMatch in argumentsMatches:
+            print(argumentsMatch)
+            parsedArguments.append(argumentsMatch)
+        
+        if len(parsedArguments) < 1:
+            return line
+        
+        return prefix + "("+ ", ".join(parsedArguments) +");\n"
+                
     formattedLine = line.replace("\t","")
     formattedLine = formattedLine.replace("\n", "") 
     
@@ -67,9 +127,13 @@ outputFilePath = sys.argv[2]
     
 buffer = ""
 
+entityType = None
+
 for root, dirs, files in os.walk(sourceDirectory):
     for file in files:
         if file.endswith(".rise"):
+            
+            entityType = None
             
             filePath = os.path.join(root, file) 
             
@@ -82,6 +146,8 @@ for root, dirs, files in os.walk(sourceDirectory):
                 buffer = buffer + transpale(line, className)
                 
             buffer = buffer + "\n\n"
+
+buffer = buffer + "\nmain();\n"
             
 print(buffer)
 
