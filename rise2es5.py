@@ -36,6 +36,11 @@ def transpale(line, className):
     if builtinMapClassMatch != None:
         prefix = builtinMapClassMatch.group(1)
         return prefix + " = {};\n"
+
+    builtinListClassMatch = re.match(r'(.*) = RiseBuiltInClasses\.List.*', line, re.M|re.I)
+    if builtinListClassMatch != None:
+        prefix = builtinListClassMatch.group(1)
+        return prefix + " = [];\n"
     
     methodMatch = re.match(r'(.*) (method) ([a-zA-Z]*)\((.*)\)', line, re.M|re.I)
     if methodMatch != None:
@@ -112,7 +117,7 @@ def transpale(line, className):
     formattedLine = line.replace("\t","")
     formattedLine = formattedLine.replace("\n", "") 
     
-    if len(formattedLine) > 1:
+    if len(formattedLine) > 1 and formattedLine[:4] != "else":
         return line[:len(line) - 1] + ";\n"
     
     return line
@@ -146,8 +151,6 @@ for root, dirs, files in os.walk(sourceDirectory):
                 buffer = buffer + transpale(line, className)
                 
             buffer = buffer + "\n\n"
-
-buffer = buffer + "\nmain();\n"
             
 print(buffer)
 
