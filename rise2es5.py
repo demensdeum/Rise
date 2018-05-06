@@ -177,6 +177,23 @@ def addScopeToDeclarations(line):
         elif variableCall not in methodDeclarations:
             print("error for line: " + line + "; no declaration '" + variableCall + "' in class or method")
             exit(1)
+
+    variableCallMatch = re.match(r'\t*([a-zA-Z]*)\[', line, re.M|re.I)
+    if variableCallMatch != None:
+        variableCall = variableCallMatch.group(1)
+        print("scope for variable: " + variableCall)
+        
+        if variableCall in allowedList:
+            pass
+        
+        elif variableCall in classDeclarations:
+            line = re.sub(r'(\t*)([a-zA-Z]*)\[', r'\1this.\2[', line, 1)
+            
+            return line
+        
+        elif variableCall not in methodDeclarations:
+            print("error for line: " + line + "; no declaration '" + variableCall + "' in class or method")
+            exit(1)
         
     variableCallMatch = re.match(r'\t*([a-zA-Z]*) =', line, re.M|re.I)
     if variableCallMatch != None:
@@ -245,6 +262,23 @@ def addScopeToDeclarations(line):
         elif variableCall not in methodDeclarations:
             print("error for line: " + line + "; no declaration '" + variableCall + "' in class or method")
             exit(1)          
+
+    variableCallMatch = re.match(r'\t*return ([a-zA-Z]*)\[', line, re.M|re.I)
+    if variableCallMatch != None:
+        variableCall = variableCallMatch.group(1)
+        print("scope for variable: " + variableCall)
+        
+        if variableCall in allowedList:
+            pass
+        
+        elif variableCall in classDeclarations:
+            line = re.sub(r'(\t*return )([a-zA-Z]*)\[', r'\1this.\2[', line, 1)
+            
+            return line
+        
+        elif variableCall not in methodDeclarations:
+            print("error for line: " + line + "; no declaration '" + variableCall + "' in class or method")
+            exit(1)
 
     variableCallMatch = re.match(r'\t*return ([a-zA-Z]*)\;', line, re.M|re.I)
     if variableCallMatch != None:
