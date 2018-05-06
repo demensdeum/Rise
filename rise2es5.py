@@ -1,17 +1,21 @@
 import sys
 import os
 import re
+from sets import Set
 
 print("Rise to ECMAScript 5 transpiler")
 
 def transpale(line, className):
     
-    global entityType
+    global entityType, classDeclarations, methodDeclarations
     
     outputLine = line
     
     classMatch = re.match(r'class ([a-zA-Z]*)', line, re.M|re.I)
     if classMatch != None:
+        
+        classDeclarations = Set()
+        
         className = classMatch.group(1)
         
         entityType = "class"
@@ -44,6 +48,9 @@ def transpale(line, className):
     
     methodMatch = re.match(r'(.*) (method) ([a-zA-Z]*)\((.*)\)', line, re.M|re.I)
     if methodMatch != None:
+        
+        methodDeclarations = Set()
+        
         methodName = methodMatch.group(3)
         arguments = methodMatch.group(4)
         print(methodName)
@@ -55,6 +62,7 @@ def transpale(line, className):
         for argumentsMatch in argumentsMatches:
             print(argumentsMatch)
             parsedArguments.append(argumentsMatch)
+            methodDeclarations.add(argumentsMatch)
         
         if className == "main":
             prefix = "var "
@@ -72,6 +80,8 @@ def transpale(line, className):
     if classVariableDeclarationMatch != None:
         classVariable = classVariableDeclarationMatch.group(3)
         
+        classDeclarations.add(classVariable)
+        
         return "\tthis." + classVariable + " = null;\n"
     
     localVariableDeclarationMatch = re.match(r'(.*)(declare) ([a-zA-Z]*)(.*)', line, re.M|re.I)
@@ -79,6 +89,8 @@ def transpale(line, className):
         space = localVariableDeclarationMatch.group(1)
         localVariable = localVariableDeclarationMatch.group(3)
         value = localVariableDeclarationMatch.group(4)
+        
+        methodDeclarations.add(localVariable)
         
         return space + "var " + localVariable + value + ";\n"
         
@@ -107,6 +119,10 @@ def transpale(line, className):
         argumentsMatches = re.findall(r' : ([" a-zA-Z]*)', line, re.M|re.I)
         for argumentsMatch in argumentsMatches:
             print(argumentsMatch)
+            
+            if argumentsMatch in classDeclarations:
+                argumentsMatch = "this." + argumentsMatch
+            
             parsedArguments.append(argumentsMatch)
         
         if len(parsedArguments) < 1:
@@ -133,6 +149,137 @@ outputFilePath = sys.argv[2]
 buffer = ""
 
 entityType = None
+classDeclarations = Set()
+methodDeclarations = Set()
+
+def addScopeToDeclarations(line):
+    
+    global classDeclarations, methodDeclarations
+    
+    allowedList = ["this", "console", "globalTapController", "globalMainController", "window"]
+    
+    if "framesCounter += 1" in line:
+        print("stop")
+    
+    variableCallMatch = re.match(r'\t*([a-zA-Z]*)\.', line, re.M|re.I)
+    if variableCallMatch != None:
+        variableCall = variableCallMatch.group(1)
+        print("scope for variable: " + variableCall)
+        
+        if variableCall in allowedList:
+            pass
+        
+        elif variableCall in classDeclarations:
+            line = re.sub(r'(\t*)([a-zA-Z]*)\.', r'\1this.\2.', line, 1)
+            
+            return line
+        
+        elif variableCall not in methodDeclarations:
+            print("error for line: " + line + "; no declaration '" + variableCall + "' in class or method")
+            exit(1)
+        
+    variableCallMatch = re.match(r'\t*([a-zA-Z]*) =', line, re.M|re.I)
+    if variableCallMatch != None:
+        variableCall = variableCallMatch.group(1)
+        print("scope for variable: " + variableCall)
+        
+        if variableCall in allowedList:
+            pass
+        
+        elif variableCall in classDeclarations:
+            line = re.sub(r'(\t*)([a-zA-Z]*) =', r'\1this.\2 = ', line, 1)
+            
+            return line
+        
+        elif variableCall not in methodDeclarations:
+            print("error for line: " + line + "; no declaration '" + variableCall + "' in class or method")
+            exit(1)
+    
+    variableCallMatch = re.match(r'\t*if \(([a-zA-Z]*)\.', line, re.M|re.I)
+    if variableCallMatch != None:
+        variableCall = variableCallMatch.group(1)
+        print("scope for variable: " + variableCall)
+        
+        if variableCall in allowedList:
+            pass
+        
+        elif variableCall in classDeclarations:
+            line = re.sub(r'(\t*if \()([a-zA-Z]*)\.', r'\1this.\2.', line, 1)
+            
+            return line
+        
+        elif variableCall not in methodDeclarations:
+            print("error for line: " + line + "; no declaration '" + variableCall + "' in class or method")
+            exit(1)     
+
+    variableCallMatch = re.match(r'\t*if \(([a-zA-Z]*) ', line, re.M|re.I)
+    if variableCallMatch != None:
+        variableCall = variableCallMatch.group(1)
+        print("scope for variable: " + variableCall)
+        
+        if variableCall in allowedList:
+            pass
+        
+        elif variableCall in classDeclarations:
+            line = re.sub(r'(\t*if \()([a-zA-Z]*) ', r'\1this.\2 ', line, 1)
+            
+            return line
+        
+        elif variableCall not in methodDeclarations:
+            print("error for line: " + line + "; no declaration '" + variableCall + "' in class or method")
+            exit(1)     
+        
+    variableCallMatch = re.match(r'\t*return ([a-zA-Z]*)\.', line, re.M|re.I)
+    if variableCallMatch != None:
+        variableCall = variableCallMatch.group(1)
+        print("scope for variable: " + variableCall)
+        
+        if variableCall in allowedList:
+            pass
+        
+        elif variableCall in classDeclarations:
+            line = re.sub(r'(\t*return )([a-zA-Z]*)\.', r'\1this.\2.', line, 1)
+            
+            return line
+        
+        elif variableCall not in methodDeclarations:
+            print("error for line: " + line + "; no declaration '" + variableCall + "' in class or method")
+            exit(1)          
+
+    variableCallMatch = re.match(r'\t*return ([a-zA-Z]*)\;', line, re.M|re.I)
+    if variableCallMatch != None:
+        variableCall = variableCallMatch.group(1)
+        print("scope for variable: " + variableCall)
+        
+        if variableCall in allowedList:
+            pass
+        
+        elif variableCall in classDeclarations:
+            line = re.sub(r'(\t*return )([a-zA-Z]*)\;', r'\1this.\2;', line, 1)
+            
+            return line
+        
+        elif variableCall not in methodDeclarations:
+            print("error for line: " + line + "; no declaration '" + variableCall + "' in class or method")
+            exit(1)          
+
+    variableCallMatch = re.match(r'\t*([a-zA-Z]*)\ ', line, re.M|re.I)
+    if variableCallMatch != None:
+        variableCall = variableCallMatch.group(1)
+        print("scope for variable: " + variableCall)
+        
+        if len(variableCall) < 1:
+            pass
+        
+        elif variableCall in allowedList:
+            pass
+        
+        elif variableCall in classDeclarations:
+            line = re.sub(r'(\t*)([a-zA-Z]*)\ ', r'\1this.\2 ', line, 1)
+            
+            return line        
+        
+    return line
 
 for root, dirs, files in os.walk(sourceDirectory):
     for file in files:
@@ -148,7 +295,7 @@ for root, dirs, files in os.walk(sourceDirectory):
             
             file = open(filePath, 'r')
             for line in file:
-                buffer = buffer + transpale(line, className)
+                buffer = buffer + addScopeToDeclarations(transpale(line, className))
                 
             buffer = buffer + "\n\n"
             
